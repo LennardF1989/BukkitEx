@@ -28,13 +28,22 @@ public abstract class MyDatabase {
     private ServerConfig serverConfig;
     private EbeanServer ebeanServer;
     
+    /**
+     * Create an instance of MyDatabase
+     * 
+     * @param javaPlugin Plugin instancing this database
+     */
     public MyDatabase(JavaPlugin javaPlugin) {
+        //Store the JavaPlugin
         this.javaPlugin = javaPlugin;
         
+        //Try to get the ClassLoader of the plugin using Reflection
         try {
+            //Find the "getClassLoader" method and make it "public" instead of "protected"
             Method method = JavaPlugin.class.getDeclaredMethod("getClassLoader");
             method.setAccessible(true);
             
+            //Store the ClassLoader
             this.classLoader = (ClassLoader)method.invoke(javaPlugin);
         }
         catch(Exception ex ) {
@@ -90,10 +99,21 @@ public abstract class MyDatabase {
         ServerConfig sc = new ServerConfig();
         sc.setDefaultServer(false);
         sc.setRegister(false);
-        sc.setClasses(getDatabaseClasses());
         sc.setName(ds.getUrl().replaceAll("[^a-zA-Z0-9]", ""));
         
-        //Check if we are using the SQLite JDBC supplied with Bukkit
+        //Get all persistent classes
+        List<Class<?>> classes = getDatabaseClasses();
+        
+        //Do a sanity check first
+        if(classes.size() == 0) {
+            //Exception: There is no use in continuing to load this database
+            throw new RuntimeException("Database has been enabled, but no classes are registered to it");
+        }
+        
+        //Register them with the EbeanServer
+        sc.setClasses(classes);
+        
+        //Check if the SQLite JDBC supplied with Bukkit is being used
         if (ds.getDriver().equalsIgnoreCase("org.sqlite.JDBC")) {
             //Remember the database is a SQLite-database
             usingSQLite = true;
@@ -140,12 +160,33 @@ public abstract class MyDatabase {
         SpiEbeanServer serv = (SpiEbeanServer) ebeanServer;
         DdlGenerator gen = serv.getDdlGenerator();
         
+        //Check if the database already (partially) exists
+        boolean databaseExists = false;
+
+        List<Class<?>> classes = getDatabaseClasses();
+        for (int i = 0; i < classes.size(); i++) {
+            try {
+                //Do a simple query which only throws an exception if the table does not exist
+                ebeanServer.find(classes.get(i)).findRowCount();
+                
+                //Query passed without throwing an exception, a database therefore already exists
+                databaseExists = true;
+                break;
+            } 
+            catch (Exception ex) {
+                //Do nothing
+            }
+        }
+        
         //Fire "before drop" event
         try {
             beforeDropDatabase();
         }
         catch(Exception ex) {
-            //throw new RuntimeException("An unexpected exception occured", ex);
+            //If the database exists, dropping has to be canceled to prevent data-loss
+            if(databaseExists) {
+                throw new RuntimeException("An unexpected exception occured", ex);
+            }
         }
         
         //Generate a DropDDL-script
@@ -170,7 +211,7 @@ public abstract class MyDatabase {
             afterCreateDatabase();
         }
         catch(Exception ex) {
-            //throw new RuntimeException("An unexpected exception occured", ex);
+            throw new RuntimeException("An unexpected exception occured", ex);
         }
     }
 
@@ -186,7 +227,7 @@ public abstract class MyDatabase {
             //Create a BufferedReader out of the potentially invalid script
             BufferedReader scriptReader = new BufferedReader(new StringReader(oldScript));
 
-            //Create an array to store all the lines we encounter
+            //Create an array to store all the lines
             List<String> scriptLines = new ArrayList<String>();
 
             //Create some additional variables for keeping track of tables
@@ -197,7 +238,7 @@ public abstract class MyDatabase {
             //Loop through all lines
             String currentLine;
             while ((currentLine = scriptReader.readLine()) != null) {
-                //Trim the current line as we don't need trailing spaces
+                //Trim the current line to remove trailing spaces
                 currentLine = currentLine.trim();
 
                 //Add the current line to the rest of the lines
@@ -205,7 +246,7 @@ public abstract class MyDatabase {
 
                 //Check if the current line is of any use
                 if(currentLine.startsWith("create table")) {
-                    //Found a table so get its name and remember the line we encountered it on
+                    //Found a table, so get its name and remember the line it has been encountered on
                     currentTable = currentLine.split(" ", 4)[2];
                     foundTables.put(currentLine.split(" ", 3)[2], scriptLines.size() - 1);
                 }
@@ -233,7 +274,7 @@ public abstract class MyDatabase {
                         //Found an unsupported action: ALTER TABLE using ADD CONSTRAINT
                         String[] addConstraintLine = alterTableLine[3].split(" ", 4);
 
-                        //Check if we can somehow fix this line
+                        //Check if this line can be fixed somehow
                         if(addConstraintLine[3].startsWith("foreign key")) {
                             //Calculate the index of last line of the current table
                             int tableLastLine = foundTables.get(alterTableLine[2]) + tableOffset;
@@ -245,7 +286,7 @@ public abstract class MyDatabase {
                             String constraintLine = String.format("%s %s %s", addConstraintLine[1], addConstraintLine[2], addConstraintLine[3]);
                             scriptLines.add(tableLastLine, constraintLine.substring(0, constraintLine.length() - 1));
 
-                            //Remove this line and raise the table offset, since we added a line
+                            //Remove this line and raise the table offset because a line has been inserted
                             scriptLines.remove(scriptLines.size() - 1);
                             tableOffset++;
                         }
@@ -284,7 +325,7 @@ public abstract class MyDatabase {
         //Retrieve the level of the root logger
         loggerLevel = Logger.getLogger("").getLevel();
 
-        //Set the level the root logger to OFF
+        //Set the level of the root logger to OFF
         Logger.getLogger("").setLevel(Level.OFF);
     }
 
@@ -313,7 +354,7 @@ public abstract class MyDatabase {
     protected void beforeDropDatabase() {}
     
     /**
-     * Method called after the loaded database has been recreated
+     * Method called after the loaded database has been created
      */
     protected void afterCreateDatabase() {}
     
