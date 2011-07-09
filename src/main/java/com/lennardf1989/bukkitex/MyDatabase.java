@@ -27,7 +27,7 @@ public abstract class MyDatabase {
     private boolean usingSQLite;
     private ServerConfig serverConfig;
     private EbeanServer ebeanServer;
-    
+
     /**
      * Create an instance of MyDatabase
      * 
@@ -36,13 +36,13 @@ public abstract class MyDatabase {
     public MyDatabase(JavaPlugin javaPlugin) {
         //Store the JavaPlugin
         this.javaPlugin = javaPlugin;
-        
+
         //Try to get the ClassLoader of the plugin using Reflection
         try {
             //Find the "getClassLoader" method and make it "public" instead of "protected"
             Method method = JavaPlugin.class.getDeclaredMethod("getClassLoader");
             method.setAccessible(true);
-            
+
             //Store the ClassLoader
             this.classLoader = (ClassLoader)method.invoke(javaPlugin);
         }
@@ -50,7 +50,7 @@ public abstract class MyDatabase {
             throw new RuntimeException("Failed to retrieve the ClassLoader of the plugin using Reflection", ex);
         }
     }
-    
+
     /**
      * Initialize the database using the passed arguments
      * 
@@ -67,10 +67,10 @@ public abstract class MyDatabase {
         try {            
             //Disable all logging
             disableDatabaseLogging(logging);
-            
+
             //Prepare the database
             prepareDatabase(driver, url, username, password, isolation);
-            
+
             //Load the database
             loadDatabase();
 
@@ -85,7 +85,7 @@ public abstract class MyDatabase {
             enableDatabaseLogging(logging);
         }
     }
-    
+
     private void prepareDatabase(String driver, String url, String username, String password, String isolation) {       
         //Setup the data source
         DataSourceConfig ds = new DataSourceConfig();
@@ -100,19 +100,19 @@ public abstract class MyDatabase {
         sc.setDefaultServer(false);
         sc.setRegister(false);
         sc.setName(ds.getUrl().replaceAll("[^a-zA-Z0-9]", ""));
-        
+
         //Get all persistent classes
         List<Class<?>> classes = getDatabaseClasses();
-        
+
         //Do a sanity check first
         if(classes.size() == 0) {
             //Exception: There is no use in continuing to load this database
             throw new RuntimeException("Database has been enabled, but no classes are registered to it");
         }
-        
+
         //Register them with the EbeanServer
         sc.setClasses(classes);
-        
+
         //Check if the SQLite JDBC supplied with Bukkit is being used
         if (ds.getDriver().equalsIgnoreCase("org.sqlite.JDBC")) {
             //Remember the database is a SQLite-database
@@ -129,7 +129,7 @@ public abstract class MyDatabase {
         //Store the ServerConfig
         serverConfig = sc;
     }
-    
+
     private void loadDatabase() {
         //Setup the database itself
         ClassLoader previous = Thread.currentThread().getContextClassLoader();
@@ -149,17 +149,17 @@ public abstract class MyDatabase {
             Thread.currentThread().setContextClassLoader(previous);
         }
     }
-    
+
     private void installDatabase(boolean rebuild) {
         //Check if the database has to be rebuild
         if(!rebuild) {
             return;
         }
-        
+
         //Create a DDL generator
         SpiEbeanServer serv = (SpiEbeanServer) ebeanServer;
         DdlGenerator gen = serv.getDdlGenerator();
-        
+
         //Check if the database already (partially) exists
         boolean databaseExists = false;
 
@@ -168,7 +168,7 @@ public abstract class MyDatabase {
             try {
                 //Do a simple query which only throws an exception if the table does not exist
                 ebeanServer.find(classes.get(i)).findRowCount();
-                
+
                 //Query passed without throwing an exception, a database therefore already exists
                 databaseExists = true;
                 break;
@@ -177,7 +177,7 @@ public abstract class MyDatabase {
                 //Do nothing
             }
         }
-        
+
         //Fire "before drop" event
         try {
             beforeDropDatabase();
@@ -188,7 +188,7 @@ public abstract class MyDatabase {
                 throw new RuntimeException("An unexpected exception occured", ex);
             }
         }
-        
+
         //Generate a DropDDL-script
         gen.runScript(true, gen.generateDropDdl());
 
@@ -196,7 +196,7 @@ public abstract class MyDatabase {
         if(usingSQLite) {
             loadDatabase();
         }
-        
+
         //Generate a CreateDDL-script
         if(usingSQLite) {
             //If SQLite is being used, the CreateDLL-script has to be validated and potentially fixed to be valid
@@ -205,7 +205,7 @@ public abstract class MyDatabase {
         else {
             gen.runScript(false, gen.generateCreateDdl());
         }
-        
+
         //Fire "after create" event
         try {
             afterCreateDatabase();
@@ -218,7 +218,7 @@ public abstract class MyDatabase {
     private String replaceDatabaseString(String input) {
         input = input.replaceAll("\\{DIR\\}", javaPlugin.getDataFolder().getPath().replaceAll("\\\\", "/") + "/");
         input = input.replaceAll("\\{NAME\\}", javaPlugin.getDescription().getName().replaceAll("[^\\w_-]", ""));
-        
+
         return input;
     }
 
@@ -321,7 +321,7 @@ public abstract class MyDatabase {
         if(logging) {
             return;
         }
-        
+
         //Retrieve the level of the root logger
         loggerLevel = Logger.getLogger("").getLevel();
 
@@ -334,11 +334,11 @@ public abstract class MyDatabase {
         if(logging) {
             return;
         }
-        
+
         //Set the level of the root logger back to the original value
         Logger.getLogger("").setLevel(loggerLevel);
     }
-    
+
     /**
      * Get a list of classes which should be registered with the EbeanServer
      * 
@@ -347,17 +347,17 @@ public abstract class MyDatabase {
     protected List<Class<?>> getDatabaseClasses() {
         return new ArrayList<Class<?>>();
     }
-    
+
     /**
      * Method called before the loaded database is being dropped
      */
     protected void beforeDropDatabase() {}
-    
+
     /**
      * Method called after the loaded database has been created
      */
     protected void afterCreateDatabase() {}
-    
+
     /**
      * Get the instance of the EbeanServer
      * 
