@@ -2,7 +2,9 @@ package com.lennardf1989.bukkitex;
 
 import java.io.BufferedReader;
 import java.io.StringReader;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.net.URLConnection;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -131,12 +133,25 @@ public abstract class MyDatabase {
     }
 
     private void loadDatabase() {
-        //Setup the database itself
-        ClassLoader previous = Thread.currentThread().getContextClassLoader();
+        //Declare a few local variables for later use
+        ClassLoader currentClassLoader = null;
+        Field cacheField = null;
+        boolean cacheValue = true;
 
         try {
-            //Something Bukkit
+            //Store the current ClassLoader, so it can be reverted later
+            currentClassLoader = Thread.currentThread().getContextClassLoader();
+
+            //Set the ClassLoader to Plugin ClassLoader
             Thread.currentThread().setContextClassLoader(classLoader);
+
+            //Get a reference to the private static "defaultUseCaches"-field in URLConnection
+            cacheField = URLConnection.class.getDeclaredField("defaultUseCaches");
+
+            //Make it accessible, store the default value and set it to false
+            cacheField.setAccessible(true);
+            cacheValue = cacheField.getBoolean(null);
+            cacheField.setBoolean(null, false);
 
             //Setup Ebean based on the configuration
             ebeanServer = EbeanServerFactory.create(serverConfig);
@@ -145,8 +160,20 @@ public abstract class MyDatabase {
             throw new RuntimeException("Failed to create a new instance of the EbeanServer", ex);
         }
         finally {
-            //Something Bukkit
-            Thread.currentThread().setContextClassLoader(previous);
+            //Revert the ClassLoader back to its original value
+            if(currentClassLoader != null) {
+                Thread.currentThread().setContextClassLoader(currentClassLoader); 
+            }
+
+            //Revert the "defaultUseCaches"-field in URLConnection back to its original value
+            try {
+                if(cacheField != null) {
+                    cacheField.setBoolean(null, cacheValue);
+                }
+            }
+            catch (Exception e) {
+                System.out.println("Failed to revert the \"defaultUseCaches\"-field back to its original value, URLConnection-caching remains disabled.");
+            }
         }
     }
 
