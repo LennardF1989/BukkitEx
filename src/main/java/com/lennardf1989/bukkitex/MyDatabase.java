@@ -178,16 +178,7 @@ public abstract class MyDatabase {
     }
 
     private void installDatabase(boolean rebuild) {
-        //Check if the database has to be rebuild
-        if(!rebuild) {
-            return;
-        }
-
-        //Create a DDL generator
-        SpiEbeanServer serv = (SpiEbeanServer) ebeanServer;
-        DdlGenerator gen = serv.getDdlGenerator();
-
-        //Check if the database already (partially) exists
+         //Check if the database already (partially) exists
         boolean databaseExists = false;
 
         List<Class<?>> classes = getDatabaseClasses();
@@ -205,7 +196,16 @@ public abstract class MyDatabase {
             }
         }
 
-        //Fire "before drop" event
+        //Check if the database has to be created or rebuilt
+        if(!rebuild && databaseExists) {
+            return;
+        }
+
+        //Create a DDL generator
+        SpiEbeanServer serv = (SpiEbeanServer) ebeanServer;
+        DdlGenerator gen = serv.getDdlGenerator();
+
+       //Fire "before drop" event
         try {
             beforeDropDatabase();
         }
