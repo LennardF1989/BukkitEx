@@ -125,6 +125,8 @@ public abstract class MyDatabase {
             sc.getDatabasePlatform().getDbDdlSyntax().setIdentity("");
         }
 
+        prepareDatabaseAdditionalConfig(ds, sc);
+
         //Finally the data source
         sc.setDataSourceConfig(ds);
 
@@ -384,6 +386,14 @@ public abstract class MyDatabase {
      * Method called after the loaded database has been created
      */
     protected void afterCreateDatabase() {}
+
+    /**
+     * Method called near the end of prepareDatabase, before the dataSourceConfig is attached to the serverConfig.
+     *
+     * @param dataSourceConfig
+     * @param serverConfig
+     */
+    protected void prepareDatabaseAdditionalConfig(DataSourceConfig dataSourceConfig, ServerConfig serverConfig) {}
 
     /**
      * Get the instance of the EbeanServer
