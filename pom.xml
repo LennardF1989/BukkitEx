@@ -17,14 +17,14 @@
   <repositories>
     <repository>
       <id>bukkit-repo</id>
-      <url>http://repo.bukkit.org/artifactory/repo</url>
+      <url>http://repo.bukkit.org/content/groups/public</url>
     </repository>
   </repositories>
   <dependencies>
     <dependency>
       <groupId>org.bukkit</groupId>
       <artifactId>craftbukkit</artifactId>
-      <version>0.0.1-SNAPSHOT</version>
+      <version>1.2.5-R1.0</version>
     </dependency>
   </dependencies>
   <build>
