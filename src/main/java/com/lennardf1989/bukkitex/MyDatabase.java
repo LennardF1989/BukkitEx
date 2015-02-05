@@ -107,7 +107,7 @@ public abstract class MyDatabase {
         List<Class<?>> classes = getDatabaseClasses();
 
         //Do a sanity check first
-        if(classes.size() == 0) {
+        if(classes.isEmpty()) {
             //Exception: There is no use in continuing to load this database
             throw new RuntimeException("Database has been enabled, but no classes are registered to it");
         }
